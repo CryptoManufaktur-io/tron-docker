@@ -260,17 +260,73 @@ install() {
 }
 
 
-# Warn user if space is low, so they can prune
-check_disk_space() {
-  __docker_dir=$(dodocker system info --format '{{.DockerRootDir}}')
-  __free_space=$(df -P "${__docker_dir}" | awk '/[0-9]%/{print $(NF-2)}')
+__get_docker_free_space() { # set __free_space to what's available to Docker
+  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+    __free_space=$(dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy | awk '/[0-9]%/{print $(NF-2)}')
+  else
+    __docker_dir=$(dodocker system info --format '{{.DockerRootDir}}')
+    __free_space=$(df -P "${__docker_dir}" | awk '/[0-9]%/{print $(NF-2)}')
+  fi
 
   re='^[0-9]+$'
   if ! [[ "${__free_space}" =~ $re ]] ; then
     echo "Unable to determine free disk space. This is likely a bug."
-    echo "df reports $(df -P "${__docker_dir}") and __free_space is ${__free_space}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      echo "df reports $(dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy) and __free_space is ${__free_space}"
+    else
+      echo "df reports $(df -P "${__docker_dir}") and __free_space is ${__free_space}"
+    fi
     exit 70
   fi
+}
+
+
+__display_docker_dir() {
+  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+    echo "Here's total and used space on Docker's virtual volume"
+    dodocker run --rm -v macos-space-check:/dummy busybox df -h /dummy
+  else
+    echo "Here's total and used space on ${__docker_dir}"
+    df -h "${__docker_dir}"
+  fi
+}
+
+
+__display_docker_volumes() {
+  echo
+  if [ -z "$(dodocker volume ls -q -f "name=^$(basename "$(realpath .)")_[^_]+")" ]; then
+    echo "There are no Docker volumes for this copy of ${__project_name}"
+    echo
+  else
+    echo "Here are the Docker volumes used by this copy of ${__project_name} and their space usage:"
+    dodocker system df -v | grep -A 50 "VOLUME NAME" | grep "^$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+    echo
+    echo "If your Consensus Layer client takes more than 200 GiB, you can resync it with"
+    echo "\"${__me} resync-consensus\"."
+    echo
+  fi
+  echo "If there is some mystery space being taken up, try \"sudo ncdu /\"."
+  echo
+}
+
+
+space() {
+  __get_docker_free_space
+  echo
+  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+    echo "You have $(( __free_space / 1024 / 1024 )) GiB free for Docker volumes"
+  else
+    echo "You have $(( __free_space / 1024 / 1024 )) GiB free on ${__docker_dir}"
+  fi
+  echo
+  __display_docker_dir
+  __display_docker_volumes
+}
+
+
+# Warn user if space is low, so they can prune
+check_disk_space() {
+  __get_docker_free_space
 
 # Adjust if your clients prune manually
 # Literal match intended
@@ -279,8 +335,11 @@ check_disk_space() {
     echo
     echo "You have less than 50 GiB of free disk space:"
     echo
-    df -h "${__docker_dir}"
+    __display_docker_dir
     echo
+    echo "Pruning does not appear an option for your client mix."
+    echo "If total space is less than 1.8 TiB, consider cloning to a larger drive."
+    __display_docker_volumes
   fi
 }
 
@@ -606,6 +665,8 @@ help() {
   echo "    executes an arbitrary Docker Compose command. Use \"cmd help\" to list them"
   echo "  terminate"
   echo "    stops the ${__app_name} and destroys all data stores"
+  echo "  space"
+  echo "    show Docker volume space usage"
   echo "  help"
   echo "    print this help screen"
   echo
@@ -636,13 +697,8 @@ fi
 
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 # Use this to make sure root doesn't end up owning files
-if [[ "$OSTYPE" == "darwin"* ]]; then
-# This is a macOS-ism
-# shellcheck disable=SC2016
-  OWNER=$(stat -f '$Su' .)
-else
-  OWNER=$(stat -c '%U' .)
-fi
+# shellcheck disable=SC2012
+OWNER=$(ls -ld . | awk '{print $3}')
 
 if [ "${OWNER}" == "root" ]; then
   echo "Please install ${__project_name} as a non-root user."
@@ -686,7 +742,7 @@ if ! docompose --help >/dev/null 2>&1; then
 fi
 
 case "$__command" in
-  help|update|up|start|down|stop|restart|version|logs|cmd|terminate)
+  help|update|up|start|down|stop|restart|version|logs|cmd|terminate|space)
     $__command "$@";;
   *)
     echo "Unrecognized command $__command"
