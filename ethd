@@ -328,9 +328,6 @@ space() {
 check_disk_space() {
   __get_docker_free_space
 
-# Adjust if your clients prune manually
-# Literal match intended
-# shellcheck disable=SC2076
   if [[ "${__free_space}" -lt 52428800 ]]; then
     echo
     echo "You have less than 50 GiB of free disk space:"
@@ -384,16 +381,9 @@ update() {
     exit 1
   fi
 
-  __docker_dir=$(dodocker system info --format '{{.DockerRootDir}}')
-  __free_space=$(df -P "${__docker_dir}" | awk '/[0-9]%/{print $(NF-2)}')
-
-  re='^[0-9]+$'
-  if ! [[ "${__free_space}" =~ $re ]] ; then
-    echo "Unable to determine free disk space. This is likely a bug."
-    echo "df reports $(df -P "${__docker_dir}") and __free_space is ${__free_space}"
-    exit 70
-  elif [ "${__free_space}" -lt 1048576 ]; then
-    echo "You have less than 1 GiB of space left on ${__docker_dir}."
+  __get_docker_free_space
+  if [ "${__free_space}" -lt 1048576 ]; then
+    echo "You have less than 1 GiB of space left for Docker volumes."
     echo "Aborting, as an update is not safe."
     exit 1
   fi
