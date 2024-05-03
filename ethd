@@ -67,6 +67,15 @@ handle_docker_sudo() {
     fi
   fi
 
+  __docker_version=$(docker --version | awk '{ gsub(/,/, "", $3); print $3 }')
+  __docker_major_version=$(docker --version | awk '{ split($3, version, "."); print version[1]; }')
+  if [ "${__docker_major_version}" -lt 23 ]; then
+    __old_docker=1
+    echo "Docker ${__docker_version} detected"
+  else
+    __old_docker=0
+  fi
+
   __docker_sudo=""
   if ! docker images >/dev/null 2>&1; then
     echo "Will use sudo to access Docker"
@@ -118,9 +127,9 @@ upgrade_compose() {
   fi
   echo "Updating Docker Compose to V2"
   if [[ "$__distro" = "ubuntu" ]]; then
-    if [ "${__os_major_version}" -lt 20 ]; then
+    if [ "${__os_major_version}" -lt 22 ]; then
       echo "${__project_name} cannot update Docker Compose on Ubuntu ${__os_major_version}."
-      echo "Consider upgrading to 20.04, then 22.04 and then 24.04."
+      echo "Consider upgrading to 22.04 and then 24.04."
       exit 1
     fi
     if dpkg-query -W -f='${Status}' docker.io 2>/dev/null | grep -q "ok installed"; then
@@ -186,7 +195,6 @@ check_for_snap() {
 
 
 install() {
-  check_for_snap
   while true; do
     read -rp "This will attempt to install Docker and make your user part of the docker group. Do you wish to continue? (no/yes) " yn
     case $yn in
@@ -195,9 +203,9 @@ install() {
     esac
   done
   if [[ "$__distro" = "ubuntu" ]]; then
-    if [ "${__os_major_version}" -lt 20 ]; then
+    if [ "${__os_major_version}" -lt 22 ]; then
       echo "${__project_name} cannot install Docker on Ubuntu ${__os_major_version}."
-      echo "Consider upgrading to 20.04, then 22.04 and then 24.04."
+      echo "Consider upgrading to 22.04 and then 24.04."
       exit 1
     fi
     if [ -z "$(which docker)" ]; then
@@ -343,9 +351,9 @@ check_disk_space() {
 
 nag_os_version() {
   if [[ "$__distro" = "ubuntu" ]]; then
-    if [ "${__os_major_version}" -lt 20 ]; then
+    if [ "${__os_major_version}" -lt 22 ]; then
       echo
-      echo "Ubuntu ${__os_major_version} is older than the recommended 24.04, 22.04 or 20.04 version."
+      echo "Ubuntu ${__os_major_version} is older than the recommended 24.04 or 22.04 version."
       echo
     fi
   elif [[ "$__distro" =~ "debian" ]]; then
@@ -355,6 +363,13 @@ nag_os_version() {
       echo
     fi
   fi
+}
+
+
+pull_and_build() {
+  dodocker system prune --force
+  docompose --profile tools pull
+  docompose --profile tools build --pull
 }
 
 
@@ -416,10 +431,7 @@ update() {
   fi
 
   envmigrate
-
-  dodocker system prune --force
-  docompose --profile tools pull
-  docompose --profile tools build --pull
+  pull_and_build
 
   if [ "${__migrated}" -eq 1 ] && ! cmp -s "${ENV_FILE}" "${ENV_FILE}".source; then
     cp "${ENV_FILE}".source "${ENV_FILE}".bak
@@ -453,7 +465,6 @@ find the original contents in ${ENV_FILE}.bak."
 
   unset ETHDSECUNDO
   unset GITEXITCODE
-  check_for_snap
   if [ "${__dirty}" -eq 1 ]; then
     echo
     echo "WARNING"
@@ -487,7 +498,7 @@ envmigrate() {
   __target_ver=$(sed -n -e "s/^${var}=\(.*\)/\1/p" "default.env" || true)
   __source_ver=$(sed -n -e "s/^${var}=\(.*\)/\1/p" "${ENV_FILE}" || true)
 
-  if [[ "${__target_ver}" = "${__source_ver}" ]]; then # No changes in template, do nothing
+  if [[ "${__target_ver}" -le "${__source_ver}" ]]; then # No changes in template, do nothing
     return 0
   fi
 
@@ -702,6 +713,8 @@ __params=$*
 handle_root
 determine_distro
 
+check_for_snap
+
 if [ "$__command" = "install" ]; then
   $__command "$@"
   exit "$?"
@@ -718,6 +731,16 @@ if [ "${__old_compose}" -eq 1 ]; then
   echo "You can install it with \"sudo apt update && sudo apt install docker-compose-v2\"."
   echo "You can remove the old docker-compose:"
   echo "\"sudo apt-mark manual docker.io && sudo apt --autoremove remove docker-compose\"."
+  exit 0
+fi
+
+if [ "${__old_docker}" -eq 1 ]; then
+  echo
+  echo "Docker version ${__docker_version} detected. This version is no longer supported."
+  echo "Please update to a current version. Supported versions can be seen at https://endoflife.date/docker-engine."
+  echo
+  echo "This should be as simple as \"sudo apt update && sudo apt dist-upgrade\" on Debian/Ubuntu"
+  echo "or updating Docker Desktop on macOS and Windows."
   exit 0
 fi
 
