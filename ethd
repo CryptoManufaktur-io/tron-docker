@@ -404,9 +404,7 @@ update() {
   fi
 
   if [ -z "${ETHDSECUNDO-}" ]; then
-    # Do not track changes to ext-network.yml
     set +e
-    ${__as_owner} git update-index --assume-unchanged ext-network.yml
     ${__as_owner} git config pull.rebase false
     var="SCRIPT_TAG"
     value=$(sed -n -e "s/^${var}=\(.*\)/\1/p" "${ENV_FILE}" || true)
@@ -525,6 +523,14 @@ envmigrate() {
   done
   rm "${ENV_FILE}".original
   __during_migrate=0
+}
+
+
+prep_conffiles() {
+# Create ext-network.yml if it doesn't exist
+  if [ ! -f "ext-network.yml" ]; then
+    ${__as_owner} cp ext-network.yml.sample ext-network.yml
+  fi
 }
 
 
@@ -712,6 +718,7 @@ __params=$*
 
 handle_root
 determine_distro
+prep_conffiles
 
 check_for_snap
 
