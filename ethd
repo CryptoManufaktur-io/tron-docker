@@ -8,6 +8,68 @@ __docker_exe="docker"
 __compose_exe="docker compose"
 __compose_upgraded=0
 
+# Also adjust version() and __env_migrate for your chain, look for the word "Adjust" below
+
+version() {
+# script version
+  grep "^This is" README.md
+  echo
+  __var="COMPOSE_FILE"
+  __value=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "${__env_file}" || true)
+# Client versions
+# Adjust for your clients and how to check their version
+  case "${__value}" in
+    *x.yml* )
+      __docompose exec x-geth x-geth version
+      ;;&
+  esac
+}
+
+
+__env_migrate() {
+  if [ ! -f "${__env_file}" ]; then
+    return 0
+  fi
+
+# Adjust these vars to your project
+  __all_vars=( COMPOSE_FILE NETWORK SNAPSHOT LOG_LEVEL DOMAIN RPC_HOST RPC_LB WS_HOST WS_LB RPC_PORT WS_PORT P2P_PORT \
+             SCRIPT_TAG X_SRC_BUILD_TARGET X_SRC_REPO X_DOCKER_TAG X_DOCKER_REPO X_DOCKERFILE )
+  __old_vars=( )
+  __new_vars=( )
+
+  __var=ENV_VERSION
+  __target_ver=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "default.env" || true)
+  __source_ver=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "${__env_file}" || true)
+
+  if [[ "${__target_ver}" -le "${__source_ver}" ]]; then # No changes in template, do nothing
+    return 0
+  fi
+
+  echo "Migrating ${__env_file} to version ${__target_ver}"
+  ${__as_owner} cp "${__env_file}" "${__env_file}".source
+  __during_migrate=1
+  __migrated=1
+  ${__as_owner} cp default.env "${__env_file}"
+  # Migrate over user settings
+  for __var in "${__all_vars[@]}"; do
+    __value=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "${__env_file}.source" || true)
+# Adjust for vars that are possibly empty
+    if [ -n "${__value}" ] || [ "${__var}" = "SNAPSHOT" ]; then
+      sed -i'.original' -e "s~^\(${__var}\s*=\s*\).*$~\1${__value}~" "${__env_file}"
+    fi
+  done
+  # Move value from old variable name(s) to new one(s)
+  for __index in "${!__old_vars[@]}"; do
+    __var=${__old_vars[__index]}
+    __value=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "${__env_file}.source" || true)
+    if [ -n "${__value}" ]; then
+      sed -i'.original' -e "s~^\(${__new_vars[__index]}\s*=\s*\).*$~\1${__value}~" "${__env_file}"
+    fi
+  done
+  rm "${__env_file}".original
+  __during_migrate=0
+}
+
 
 __dodocker() {
   $__docker_sudo $__docker_exe "$@"
@@ -507,51 +569,6 @@ find the original contents in ${__env_file}.bak."
 }
 
 
-__env_migrate() {
-  if [ ! -f "${__env_file}" ]; then
-    return 0
-  fi
-
-# Adjust these vars to your project
-  __all_vars=( COMPOSE_FILE NETWORK SNAPSHOT LOG_LEVEL DOMAIN RPC_HOST RPC_LB WS_HOST WS_LB RPC_PORT WS_PORT P2P_PORT \
-             SCRIPT_TAG X_SRC_BUILD_TARGET X_SRC_REPO X_DOCKER_TAG X_DOCKER_REPO X_DOCKERFILE )
-  __old_vars=( )
-  __new_vars=( )
-
-  __var=ENV_VERSION
-  __target_ver=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "default.env" || true)
-  __source_ver=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "${__env_file}" || true)
-
-  if [[ "${__target_ver}" -le "${__source_ver}" ]]; then # No changes in template, do nothing
-    return 0
-  fi
-
-  echo "Migrating ${__env_file} to version ${__target_ver}"
-  ${__as_owner} cp "${__env_file}" "${__env_file}".source
-  __during_migrate=1
-  __migrated=1
-  ${__as_owner} cp default.env "${__env_file}"
-  # Migrate over user settings
-  for __var in "${__all_vars[@]}"; do
-    __value=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "${__env_file}.source" || true)
-# Adjust for vars that are possibly empty
-    if [ -n "${__value}" ] || [ "${__var}" = "SNAPSHOT" ]; then
-      sed -i'.original' -e "s~^\(${__var}\s*=\s*\).*$~\1${__value}~" "${__env_file}"
-    fi
-  done
-  # Move value from old variable name(s) to new one(s)
-  for __index in "${!__old_vars[@]}"; do
-    __var=${__old_vars[__index]}
-    __value=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "${__env_file}.source" || true)
-    if [ -n "${__value}" ]; then
-      sed -i'.original' -e "s~^\(${__new_vars[__index]}\s*=\s*\).*$~\1${__value}~" "${__env_file}"
-    fi
-  done
-  rm "${__env_file}".original
-  __during_migrate=0
-}
-
-
 __prep_conffiles() {
 # Create ext-network.yml if it doesn't exist
   if [ ! -f "ext-network.yml" ]; then
@@ -656,22 +673,6 @@ __handle_error() {
     echo "Restored your ${__env_file} file, to undo partial migration. Please verify it looks correct."
     echo "The partially migrated file is in ${__env_file}.partial for troubleshooting."
   fi
-}
-
-
-version() {
-# script version
-  grep "^This is" README.md
-  echo
-  __var="COMPOSE_FILE"
-  __value=$(sed -n -e "s/^${__var}=\(.*\)/\1/p" "${__env_file}" || true)
-# Client versions
-# Adjust for your clients and how to check their version
-  case "${__value}" in
-    *x.yml* )
-      __docompose exec x-geth x-geth version
-      ;;&
-  esac
 }
 
 
