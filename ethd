@@ -26,6 +26,12 @@ version() {
 }
 
 
+__prep_conffiles() {
+  # Adjust - this is where sample files would be copied to config files that are meant to be bind-mounted
+  return
+}
+
+
 __env_migrate() {
   if [ ! -f "${__env_file}" ]; then
     return 0
@@ -694,14 +700,6 @@ find the original contents in ${__env_file}.bak."
     echo "Please make sure to run compatible client versions."
   fi
   __during_update=0
-}
-
-
-__prep_conffiles() {
-# Create ext-network.yml if it doesn't exist
-  if [ ! -f "ext-network.yml" ]; then
-    ${__as_owner} cp ext-network.yml.sample ext-network.yml
-  fi
 }
 
 
