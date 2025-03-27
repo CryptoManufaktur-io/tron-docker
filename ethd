@@ -70,15 +70,22 @@ __env_migrate() {
     fi
   fi
 
-  if [[ "${__target_ver}" -le "${__source_ver}" ]]; then # No changes in template, do nothing
+  if [[ "${__keep_targets}" -eq 1 && "${__target_ver}" -le "${__source_ver}" ]]; then # No changes in template, do nothing
     return 0
   fi
 
-  echo "Migrating ${__env_file} to version ${__target_ver}"
+  if [ "${__keep_targets}" -eq 0 ]; then
+    echo "Refreshing build targets in ${__env_file}"
+  fi
+  if [[ "${__target_ver}" -gt "${__source_ver}" ]]; then
+    echo "Migrating ${__env_file} to version ${__target_ver}"
+  fi
+
   ${__as_owner} cp "${__env_file}" "${__env_file}".source
   __during_migrate=1
   __migrated=1
   ${__as_owner} cp default.env "${__env_file}"
+
   # Migrate over user settings
   while IFS= read -r __line; do  # read default.env and process all variables in it
     # Skip blank lines and comments
