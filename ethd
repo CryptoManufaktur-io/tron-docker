@@ -933,7 +933,24 @@ __handle_error() {
 }
 
 
-help() {
+__update_help() {
+  echo "usage: $__me update [--refresh-targets] [--non-interactive] [--debug]"
+  echo
+  echo "Updates Eth Docker itself, as required the contents of \".env\", and the clients."
+  echo
+  echo "A combination of \"git pull\" for Eth Docker, some bash scripting to bring new variables from \"default.env\","
+  echo "and \"docker compose pull\" as well as \"docker compose build\" for the clients."
+  echo
+  echo "If warranted, will also offer resync when clients require it, or upgrade of PostgreSQL version."
+  echo
+  echo "\"--refresh-targets\" sets Docker tags, source targets, and repos of clients back to the defaults in \"default.env\"."
+  echo "\"--non-interactive\" does not ask questions and assumes Yes for database resyncs and migrations."
+  echo "\"--debug\" handles some CI sanity checks."
+  echo
+}
+
+
+__full_help() {
   echo "usage: ${__me} [-h|--help] <command>"
   echo
   echo "commands:"
@@ -968,6 +985,14 @@ help() {
   echo
   echo "$__me will attempt to use sudo as needed for Docker commands"
   echo
+}
+
+
+help() {
+  case $* in
+    *update*) __update_help;;
+    *) __full_help;;
+  esac
 }
 
 
