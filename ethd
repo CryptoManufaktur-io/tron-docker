@@ -70,7 +70,7 @@ __env_migrate() {
     fi
   fi
 
-#shellcheck disable=SC2154
+# shellcheck disable=SC2154
   if [[ "${__keep_targets}" -eq 1 && "${__target_ver}" -le "${__source_ver}" ]]; then # No changes in template, do nothing
     return 0
   fi
@@ -814,6 +814,9 @@ find the original contents in ${__env_file}.bak."
     echo "${__project_name} version is pinned to ${ETHDPINNED} in \".env\"."
     echo "Please make sure to run compatible client versions."
   fi
+# Release lock and remove lock file
+  exec 200<&-
+  ${__as_owner} rm -f "/tmp/${__lock_file}"
   __during_update=0
 }
 
@@ -832,6 +835,7 @@ start() {
 # If multiples of this stack may run on one host, distinguish by something unique. Otherwise just set a value here
 #  __var="NETWORK"
 # __get_value_from_env "${__var}" "${__env_file}" "__screen_id"
+# shellcheck disable=SC2154
 #  rm -f "/tmp/${__screen_id}-compose-screen.log"
 #  screen -dmS "${__screen_id}-compose-session" -L -Logfile "/tmp/${__screen_id}-compose-screen.log" "${__compose_exe}" up -d --remove-orphans "$@"
 #  echo "Running \"docker compose up -d\" in screen because of the init container."
