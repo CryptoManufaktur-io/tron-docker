@@ -625,7 +625,7 @@ space() {
 }
 
 
-# Warn user if space is low, so they can prune
+# Warn user if space is low
 __check_disk_space() {
   __get_docker_free_space
 
@@ -634,9 +634,6 @@ __check_disk_space() {
     echo "You have less than 50 GiB of free disk space:"
     echo
     __display_docker_dir
-    echo
-    echo "Pruning does not appear an option for your client mix."
-    echo "If total space is less than 1.8 TiB, consider cloning to a larger drive."
     __display_docker_volumes
   fi
 }
