@@ -176,12 +176,12 @@ __get_value_from_env() {
   local __output
   local __parsed_value
 
-  if [[ "${__output_var}" == "__parsed_value" || "${__output_var}" == "__output_var" \
-      || "${__output_var}" == "__output" || "${__output_var}" == "__env_file" \
-      || "${__output_var}" == "__var_name" ]]; then
-    echo "❌ __get_value_from_env was called with a conflicting output variable: $__output_var" >&2
-    echo "This is a bug."  >&2
-    exit 1
+  if [[ "${__output_var}" = "__parsed_value" || "${__output_var}" = "__output_var" \
+      || "${__output_var}" = "__output" || "${__output_var}" = "__env_file" \
+      || "${__output_var}" = "__var_name" ]]; then
+    echo "__get_value_from_env was called with a conflicting output variable: $__output_var"
+    echo "This is a bug."
+    exit 70
   fi
 
   __output=$(awk -v var="$__var_name" '
@@ -326,7 +326,7 @@ __determine_distro() {
   # Determine OS platform
   __uname=$(uname | tr "[:upper:]" "[:lower:]")
   # If Linux, try to determine specific distribution
-  if [ "$__uname" == "linux" ]; then
+  if [ "$__uname" = "linux" ]; then
     # If available, use LSB to identify distribution
     if [ -n "$(which lsb_release 2>/dev/null)" ]; then
       __distro=$(lsb_release -i | cut -d: -f2 | sed s/'^\t'//)
@@ -338,7 +338,7 @@ __determine_distro() {
     __distro=""
   fi
   # For everything else (or if above failed), just use generic identifier
-  [ "$__distro" == "" ] && __distro=$__uname
+  [ "$__distro" = "" ] && __distro=$__uname
   unset __uname
   __distro=$(echo "$__distro" | tr "[:upper:]" "[:lower:]")
 
@@ -536,7 +536,7 @@ install() {
     fi
     if [ -z "$(which docker)" ]; then
       ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y ca-certificates curl gnupg \
-        chrony pkg-config
+        chrony pkg-config screen ncdu
       ${__auto_sudo} mkdir -p /etc/apt/keyrings
       ${__auto_sudo} curl -fsSL https://download.docker.com/linux/ubuntu/gpg | ${__auto_sudo} gpg --dearmor -o /etc/apt/keyrings/docker.gpg
       ${__auto_sudo} echo \
@@ -545,6 +545,7 @@ install() {
       ${__auto_sudo} apt-get update
       ${__auto_sudo} apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin \
         docker-buildx-plugin
+      ${__auto_sudo} systemctl start systemd-logind
       echo "Installed docker-ce and docker-compose-plugin"
     else
       echo "Docker is already installed"
@@ -560,7 +561,7 @@ install() {
   elif [[ "$__distro" =~ "debian" ]]; then
     if [ -z "$(which docker)" ]; then
       ${__auto_sudo} apt-get update
-      ${__auto_sudo} apt-get -y install ca-certificates curl gnupg chrony pkg-config
+      ${__auto_sudo} apt-get -y install ca-certificates curl gnupg chrony pkg-config screen ncdu
       if [ "${__os_major_version}" -lt 11 ]; then
         echo "${__project_name} cannot install Docker on Debian ${__os_major_version}."
         echo "Consider upgrading to 11 and then 12."
@@ -574,6 +575,7 @@ install() {
       ${__auto_sudo} apt-get update
       ${__auto_sudo} apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin \
         docker-buildx-plugin
+      ${__auto_sudo} systemctl start systemd-logind
       echo "Installed docker-ce and docker-compose-plugin"
     else
       echo "Docker is already installed"
@@ -595,7 +597,7 @@ install() {
 
 
 __get_docker_free_space() { # set __free_space to what's available to Docker
-  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+  if [[ "$OSTYPE" = "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
     __free_space=$(__dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy | awk '/[0-9]%/{print $(NF-2)}')
   else
     __docker_dir=$(__dodocker system info --format '{{.DockerRootDir}}')
@@ -605,7 +607,7 @@ __get_docker_free_space() { # set __free_space to what's available to Docker
   __regex='^[0-9]+$'
   if ! [[ "${__free_space}" =~ $__regex ]] ; then
     echo "Unable to determine free disk space. This is likely a bug."
-    if [[ "$OSTYPE" == "darwin"* ]]; then
+    if [[ "$OSTYPE" = "darwin"* ]]; then
       echo "df reports $(__dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy) and __free_space is ${__free_space}"
     else
       echo "df reports $(df -P "${__docker_dir}") and __free_space is ${__free_space}"
@@ -616,7 +618,7 @@ __get_docker_free_space() { # set __free_space to what's available to Docker
 
 
 __display_docker_dir() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+  if [[ "$OSTYPE" = "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
     echo "Here's total and used space on Docker's virtual volume"
     __dodocker run --rm -v macos-space-check:/dummy busybox df -h /dummy
   else
@@ -636,7 +638,18 @@ __display_docker_volumes() {
     __dodocker system df -v | grep -A 500 "VOLUME NAME" | grep "^$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
     echo
   fi
-  echo "If there is some mystery space being taken up, try \"sudo ncdu /\"."
+  if command -v ncdu >/dev/null 2>&1; then
+    echo "If there is some mystery space being taken up, try \"sudo ncdu /\"."
+  else
+    echo "If there is some mystery space being taken up, install ncdu, then try \"sudo ncdu /\"."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      echo "To install ncdu, run \"brew install ncdu\"."
+    elif [[ "$__distro" = "ubuntu" || "$__distro" =~ "debian" ]]; then
+      echo "To install ncdu, run \"sudo apt update && sudo apt install ncdu\"."
+    else
+      echo "How to install ncdu will be specific to your distribution ${__distro}."
+    fi
+  fi
   echo
 }
 
@@ -644,7 +657,7 @@ __display_docker_volumes() {
 space() {
   __get_docker_free_space
   echo
-  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+  if [[ "$OSTYPE" = "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
     echo "You have $(( __free_space / 1024 / 1024 )) GiB free for Docker volumes"
   else
     echo "You have $(( __free_space / 1024 / 1024 )) GiB free on ${__docker_dir}"
@@ -793,11 +806,13 @@ update() {
   fi
 
   __env_migrate
+  if [ "${__migrated}" -eq 1 ] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
+    ${__as_owner} cp "${__env_file}".source "${__env_file}".bak
+  fi
   __pull_and_build
 
   if [ "${__migrated}" -eq 1 ] && ! cmp -s "${__env_file}" "${__env_file}".source; then
-    cp "${__env_file}".source "${__env_file}".bak
-    rm "${__env_file}".source
+    ${__as_owner} rm "${__env_file}".source  # .bak was created earlier
     echo "Your ${__env_file} configuration settings have been migrated to a fresh copy. You can \
 find the original contents in ${__env_file}.bak."
     echo
@@ -924,6 +939,16 @@ __handle_error() {
 
   local __exit_code=$1
   local __line_no=$2
+  if [ "$__exit_code" -eq 0 ]; then
+    return 0
+  fi
+
+  if [[ -n "${__handler_ran:-}" ]]; then
+    return 0
+  fi
+  __handler_ran=1
+
+  echo
   if [ "$__exit_code" -eq 130 ]; then
     echo "$__me terminated by user"
   else
@@ -1013,9 +1038,9 @@ __migrated=0
 __command=""
 __me="./$(basename "${BASH_SOURCE[0]}")"
 
-trap '__handle_error $? $LINENO' ERR
+trap '__handle_error $? $LINENO' ERR EXIT
 
-if [[ "$#" -eq 0 || "$*" =~ "-h" ]]; then # Lazy match for -h and --help but also --histogram, so careful here
+if [[ "$#" -eq 0 || "$*" = "--help" || "$*" = "-h" || "$*" = "update --help" || "$*" = "update -h" ]]; then
   help "$@"
   exit 0
 fi
@@ -1025,7 +1050,7 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 # shellcheck disable=SC2012
 OWNER=$(ls -ld . | awk '{print $3}')
 
-if [ "${OWNER}" == "root" ]; then
+if [ "${OWNER}" = "root" ]; then
   echo "Please install ${__project_name} as a non-root user."
   exit 0
 fi
