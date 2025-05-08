@@ -33,4 +33,4 @@ else
   echo "No snapshot fetch necessary"
 fi
 
-exec java -Xmx24g -XX:+UseConcMarkSweepGC -jar /FullNode.jar -c /main_net_config.conf -d /tron/output-directory
+exec java -Xmx24g -XX:+UseConcMarkSweepGC -Dlogback.configurationFile=file:/log-stdout.xml -jar /FullNode.jar -c /main_net_config.conf -d /tron/output-directory
