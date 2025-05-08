@@ -1,0 +1,55 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  tron:
+    restart: "unless-stopped"
+    build:
+      context: ./tron
+      dockerfile: Dockerfile
+      args:
+        - TRON_VERSION_TAG=${TRON_VERSION_TAG}
+    image: tron:latest
+    entrypoint: docker-entrypoint.sh
+    pull_policy: never
+    volumes:
+      - tron-data:/tron
+    labels:
+      - traefik.enable=true
+
+      # domain.com/wallet path
+      - traefik.http.routers.${RPC_HOST:-tron}-wallet.rule=Host(`${RPC_HOST:-tron}.${DOMAIN}`)  && PathPrefix(`/wallet`)
+      - traefik.http.routers.${RPC_HOST:-tron}-wallet.service=${RPC_HOST:-tron}-wallet
+      - traefik.http.routers.${RPC_HOST:-tron}-wallet.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST:-tron}-wallet.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST:-tron}-wallet.loadbalancer.server.port=8090
+
+      # domain.com/walletsolidity path
+      - traefik.http.routers.${RPC_HOST:-tron}-walletsolidity.rule=Host(`${RPC_HOST:-tron}.${DOMAIN}`)  && PathPrefix(`/walletsolidity`)
+      - traefik.http.routers.${RPC_HOST:-tron}-walletsolidity.service=${RPC_HOST:-tron}-walletsolidity
+      - traefik.http.routers.${RPC_HOST:-tron}-walletsolidity.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST:-tron}-walletsolidity.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST:-tron}-walletsolidity.loadbalancer.server.port=8091
+
+      # domain.com/jsonrpc path
+      - traefik.http.routers.${RPC_HOST:-tron}-jsonrpc.rule=Host(`${RPC_HOST:-tron}.${DOMAIN}`)  && PathPrefix(`/jsonrpc`)
+      - traefik.http.routers.${RPC_HOST:-tron}-jsonrpc.service=${RPC_HOST:-tron}-jsonrpc
+      - traefik.http.routers.${RPC_HOST:-tron}-jsonrpc.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST:-tron}-jsonrpc.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST:-tron}-jsonrpc.loadbalancer.server.port=8545
+
+      # metrics
+      - metrics.scrape=true
+      - metrics.port=9527
+      - metrics.path=/metrics
+      - metrics.network=tron
+
+    <<: *logging
+
+volumes:
+  tron-data:
