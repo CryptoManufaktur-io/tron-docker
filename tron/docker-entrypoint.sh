@@ -30,6 +30,7 @@ __get_snapshot() {
 if [ -n "${SNAPSHOT}" ] && [ ! -d "/tron/output-directory" ]; then
   __get_snapshot
 else
+    mkdir -p /tron/output-directory
   echo "No snapshot fetch necessary"
 fi
 
