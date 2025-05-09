@@ -15,6 +15,7 @@ services:
       args:
         - TRON_VERSION_TAG=${TRON_VERSION_TAG}
     image: tron:latest
+    platform: linux/amd64
     environment:
       - SNAPSHOT=${SNAPSHOT}
       - SNAPSHOT_HASH=${SNAPSHOT_HASH}

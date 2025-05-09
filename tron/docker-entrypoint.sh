@@ -20,6 +20,7 @@ __get_snapshot() {
     # clean up
     cd /
     rm -rf /tron/snapshot
+    echo "Done setting up snapshot"
   else
     echo "Error: snapshot hash did not match."
     exit 1
