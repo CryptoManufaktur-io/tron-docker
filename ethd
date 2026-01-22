@@ -669,7 +669,7 @@ space() {
 
 check-sync() {
   if [[ $# -eq 0 ]]; then
-    bash scripts/check_sync.sh --public-rpc https://tron.drpc.org --compose-service tron --local-rpc http://127.0.0.1:8545/jsonrpc || true
+    bash scripts/check_sync.sh --public-rpc https://api.trongrid.io/jsonrpc --compose-service tron --local-rpc http://127.0.0.1:8545/jsonrpc || true
   else
     bash scripts/check_sync.sh "$@" || true
   fi

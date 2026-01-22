@@ -17,9 +17,9 @@ Options:
   -h, --help               Show this help
 
 Examples:
-  ./check_sync.sh --public-rpc https://tron.drpc.org
-  ./check_sync.sh --compose-service tron --public-rpc https://tron.drpc.org
-  CONTAINER=tron-1 PUBLIC_RPC=https://tron.drpc.org ./check_sync.sh
+  ./check_sync.sh --public-rpc https://api.trongrid.io/jsonrpc
+  ./check_sync.sh --compose-service tron --public-rpc https://api.trongrid.io/jsonrpc
+  CONTAINER=tron-1 PUBLIC_RPC=https://api.trongrid.io/jsonrpc ./check_sync.sh
 EOF
 }
 
