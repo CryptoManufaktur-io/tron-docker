@@ -32,7 +32,7 @@ services:
       - traefik.http.routers.${RPC_HOST:-tron}-wallet.entrypoints=websecure
       - traefik.http.routers.${RPC_HOST:-tron}-wallet.tls.certresolver=letsencrypt
       - traefik.http.routers.${RPC_HOST:-tron}-walletlb.rule=Host(`${RPC_LB:-tron-lb}.${DOMAIN}`)  && PathPrefix(`/wallet`)
-      - traefik.http.routers.${RPC_HOST:-tron}-walletlb.service=${RPC_HOST:-ab}
+      - traefik.http.routers.${RPC_HOST:-tron}-walletlb.service=${RPC_HOST:-tron}
       - traefik.http.routers.${RPC_HOST:-tron}-walletlb.entrypoints=websecure
       - traefik.http.routers.${RPC_HOST:-tron}-walletlb.tls.certresolver=letsencrypt
       - traefik.http.services.${RPC_HOST:-tron}-wallet.loadbalancer.server.port=8090
@@ -43,7 +43,7 @@ services:
       - traefik.http.routers.${RPC_HOST:-tron}-walletsolidity.entrypoints=websecure
       - traefik.http.routers.${RPC_HOST:-tron}-walletsolidity.tls.certresolver=letsencrypt
       - traefik.http.routers.${RPC_HOST:-tron}-walletsoliditylb.rule=Host(`${RPC_LB:-tron-lb}.${DOMAIN}`)  && PathPrefix(`/walletsolidity`)
-      - traefik.http.routers.${RPC_HOST:-tron}-walletsoliditylb.service=${RPC_HOST:-ab}
+      - traefik.http.routers.${RPC_HOST:-tron}-walletsoliditylb.service=${RPC_HOST:-tron}
       - traefik.http.routers.${RPC_HOST:-tron}-walletsoliditylb.entrypoints=websecure
       - traefik.http.routers.${RPC_HOST:-tron}-walletsoliditylb.tls.certresolver=letsencrypt
       - traefik.http.services.${RPC_HOST:-tron}-walletsolidity.loadbalancer.server.port=8091
@@ -54,7 +54,7 @@ services:
       - traefik.http.routers.${RPC_HOST:-tron}-jsonrpc.entrypoints=websecure
       - traefik.http.routers.${RPC_HOST:-tron}-jsonrpc.tls.certresolver=letsencrypt
       - traefik.http.routers.${RPC_HOST:-tron}-jsonrpclb.rule=Host(`${RPC_LB:-tron-lb}.${DOMAIN}`)  && PathPrefix(`/jsonrpc`)
-      - traefik.http.routers.${RPC_HOST:-tron}-jsonrpclb.service=${RPC_HOST:-ab}
+      - traefik.http.routers.${RPC_HOST:-tron}-jsonrpclb.service=${RPC_HOST:-tron}
       - traefik.http.routers.${RPC_HOST:-tron}-jsonrpclb.entrypoints=websecure
       - traefik.http.routers.${RPC_HOST:-tron}-jsonrpclb.tls.certresolver=letsencrypt
       - traefik.http.services.${RPC_HOST:-tron}-jsonrpc.loadbalancer.server.port=8545
